@@ -1,53 +1,52 @@
-const Discord = require('discord.js-selfbot-v13');
-const bot = new Discord.Client()
-const fs = require('fs')
 require("dotenv").config()
 
-require("dotenv")
-bot.once("ready",()=>{
-    console.log("Ready")
+const fs = require('node:fs');
+const path = require('node:path');
+const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
+const token = process.env.token
+
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+client.commands = new Collection();
+
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+for (const file of commandFiles) {
+	const filePath = path.join(commandsPath, file);
+	const command = require(filePath);
+	
+	if ('data' in command && 'execute' in command) {
+		client.commands.set(command.data.name, command);
+	} else {
+		console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+	}
+}
+
+client.on(Events.InteractionCreate, async interaction => {
+	if (!interaction.isChatInputCommand()) return;
+
+	const command = interaction.client.commands.get(interaction.commandName);
+
+	if (!command) {
+		console.error(`No command matching ${interaction.commandName} was found.`);
+		return;
+	}
+
+	try {
+		await command.execute(interaction);
+	} catch (error) {
+		console.error(error);
+		if (interaction.replied || interaction.deferred) {
+			await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+		} else {
+			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+		}
+	}
+});
+
+client.once("ready",()=>{
+    console.log("Bot is up and running!")
 })
 
-
-
-
-const CharacterAI = require('node_characterai');
-const characterAI = new CharacterAI();
-
-let chat;
-
-(async() => {
-    await characterAI.authenticateWithToken(process.env.CHARACTERAI_TOKEN);
-    
-
-    const characterId = "nsNSSecuvDk-sBVbGNvr7FjmHDn8Ir4Fiieu2jFyajI" // Turismo
-
-    chat = await characterAI.createOrContinueChat(characterId);
-    console.log("Chat is ready")
-    console.log(chat)
-    
-    // use response.text to use it in a string.
-})();
-
-bot.on("messageCreate", msg=>{
-    if (msg.channelId == "593535519263293460"&&msg.author.id !="394037472625164299") {
-        
-
-
-        chat.sendAndAwaitResponse(msg.content, true).then(resp=>{
-       
-            msg.reply(resp.text)
-        })
-
-        
-       
-        
-    }
-})
-
-
-
-
-
-
-bot.login("Mzk0MDM3NDcyNjI1MTY0Mjk5.GoLY-1.g6jB3Ty6BRA-TMf5KG8ZdtTn-KWghzIjtjZPoU")
+client.login(token)
