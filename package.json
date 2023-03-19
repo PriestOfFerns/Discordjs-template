@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "discord.js-selfbot-v13": "^2.11.4",
+    "dotenv": "^16.0.3",
+    "node_characterai": "^1.1.0"
+  }
+}
